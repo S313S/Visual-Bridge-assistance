@@ -1,20 +1,44 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Visual Bridge Assistance
 
-# Run and deploy your AI Studio app
+A React application built with Vite, TypeScript, and Google Gemini API.
 
-This contains everything you need to run your app locally.
+## Project Setup
 
-View your app in AI Studio: https://ai.studio/apps/drive/1V_0eSlanb9phx3Gu1w0gzrvp7jkQiSz3
+### Prerequisites
+- Node.js (v18 or higher recommended)
+- npm or yarn
 
-## Run Locally
+### Installation
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-**Prerequisites:**  Node.js
+### Running Locally
+To start the development server:
+```bash
+npm run dev
+```
+The application will be available at `http://localhost:3000` (or the port shown in your terminal).
 
+## Deployment
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+This project uses **GitHub Actions** to deploy to **GitHub Pages**.
+
+### How it works
+On every push to the `main` or `master` branch, the workflow `.github/workflows/deploy.yml` will:
+1. Install dependencies.
+2. Build the project.
+3. Deploy the `dist` folder to the `gh-pages` branch.
+
+### Initial Setup for GitHub Pages
+1. Go to your repository **Settings**.
+2. Navigate to **Pages** (on the left sidebar).
+3. Under **Source**, select **Deploy from a branch**.
+4. Select `gh-pages` branch and `/ (root)` folder (Note: The `gh-pages` branch will be created after the first successful Action run).
+5. Click **Save**.
+
+## Configuration
+- **Vite Config**: `vite.config.ts` is configured with `base: './'` for relative path deployment, ensuring it works on any subdirectory.
+- **Environment Variables**: Create a `.env` file for secrets like `GEMINI_API_KEY`. (Note: This file is git-ignored).
