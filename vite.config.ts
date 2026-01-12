@@ -15,7 +15,9 @@ export default defineConfig(({ mode }) => {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.VOLC_API_KEY': JSON.stringify(env.VOLC_API_KEY),
       'process.env.VOLC_TEXT_MODEL': JSON.stringify(env.VOLC_TEXT_MODEL),
-      'process.env.VOLC_IMAGE_MODEL': JSON.stringify(env.VOLC_IMAGE_MODEL)
+      'process.env.VOLC_IMAGE_MODEL': JSON.stringify(env.VOLC_IMAGE_MODEL),
+      'process.env.VITE_KB_URL': JSON.stringify(env.VITE_KB_URL),
+      'process.env.VITE_GITHUB_TOKEN': JSON.stringify(env.VITE_GITHUB_TOKEN)
     },
     resolve: {
       alias: {

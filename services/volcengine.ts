@@ -30,13 +30,17 @@ export interface ChatResponse {
 
 export const sendMessageToDoubao = async (
     history: { role: string; parts: { text: string }[] }[],
-    lastMessage: string
+    lastMessage: string,
+    systemInstructionOverride?: string
 ): Promise<ChatResponse> => {
     const apiKey = getApiKey();
 
+    // Use override if provided, otherwise default
+    const sysInstruction = systemInstructionOverride || SYSTEM_INSTRUCTION;
+
     // Convert Gemini-style history to OpenAI/Doubao format
     const messages = [
-        { role: "system", content: SYSTEM_INSTRUCTION },
+        { role: "system", content: sysInstruction },
         ...history.map(msg => ({
             role: msg.role === 'model' ? 'assistant' : msg.role,
             content: msg.parts[0].text

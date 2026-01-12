@@ -4,6 +4,8 @@ import ChatMessage from './components/ChatMessage';
 import ImageGallery from './components/ImageGallery';
 import { AppState, Message, Sender, GeneratedImage } from './types';
 import { sendMessageToDoubao, generateImageWithDoubao } from './services/volcengine';
+import { fetchExternalKnowledge } from './services/knowledgeBase';
+import { SYSTEM_INSTRUCTION } from './constants';
 
 const App: React.FC = () => {
     // State
@@ -23,6 +25,7 @@ const App: React.FC = () => {
     const [currentPrompts, setCurrentPrompts] = useState<string[]>([]);
     const [currentAspectRatio, setCurrentAspectRatio] = useState<string>('1:1');
     const [showKeyModal, setShowKeyModal] = useState(false);
+    const [systemContext, setSystemContext] = useState<string>('');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const MAX_ITERATIONS = 7;
@@ -38,6 +41,16 @@ const App: React.FC = () => {
         if (!process.env.VOLC_API_KEY && !process.env.API_KEY) {
             setShowKeyModal(true);
         }
+
+        // Load Knowledge Base
+        const loadKnowledge = async () => {
+            const kb = await fetchExternalKnowledge();
+            if (kb) {
+                console.log("Knowledge Base loaded successfully");
+                setSystemContext(kb);
+            }
+        };
+        loadKnowledge();
     }, []);
 
 
@@ -64,7 +77,11 @@ const App: React.FC = () => {
             }));
 
         // Call Volcengine Doubao for Text Analysis
-        const response = await sendMessageToDoubao(history, userMsg.text);
+        const fullSystemInstruction = systemContext
+            ? `${SYSTEM_INSTRUCTION}\n\n### Additional Knowledge Base:\n${systemContext}`
+            : undefined;
+
+        const response = await sendMessageToDoubao(history, userMsg.text, fullSystemInstruction);
 
         setIsTyping(false);
 
@@ -177,7 +194,7 @@ const App: React.FC = () => {
                         <Sparkles size={18} />
                     </div>
                     <h1 className="text-xl font-bold text-gray-800 tracking-tight">VisualBridge AI (视觉桥梁)</h1>
-                    <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 ml-2">MVP 1.0</span>
+                    <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 ml-2">MVP 1.2</span>
                 </div>
                 <div className="flex items-center gap-4">
                     <button
