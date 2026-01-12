@@ -17,13 +17,15 @@ export default defineConfig(({ mode }) => {
       'process.env.VOLC_TEXT_MODEL': JSON.stringify(env.VOLC_TEXT_MODEL),
       'process.env.VOLC_IMAGE_MODEL': JSON.stringify(env.VOLC_IMAGE_MODEL),
       'process.env.VITE_KB_URL': JSON.stringify(env.VITE_KB_URL),
-      'process.env.VITE_GITHUB_TOKEN': JSON.stringify(env.VITE_GITHUB_TOKEN)
+      'process.env.VITE_GITHUB_TOKEN': JSON.stringify(env.VITE_GITHUB_TOKEN),
     },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
-      }
+      },
     },
-    base: './',
+
+    // ✅ 关键改动：从 './' 改成 '/仓库名/'
+    base: '/Visual-Bridge-assistance/',
   };
 });
