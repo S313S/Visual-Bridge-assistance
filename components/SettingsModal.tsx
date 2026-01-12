@@ -20,8 +20,8 @@ export const LOCAL_STORAGE_KEY = 'visual_bridge_config';
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }) => {
     const [config, setConfig] = useState<AppConfig>({
         volcApiKey: '',
-        volcTextModel: 'doubao-seed-1-8',
-        volcImageModel: 'doubao-seedream-4-5',
+        volcTextModel: '', // Must be user endpoint ID
+        volcImageModel: '', // Must be user endpoint ID
         kbUrl: '',
         githubToken: ''
     });
@@ -36,11 +36,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }
                 // Fallback to env vars if available (for initial load)
                 // Note: verification logic will prefer storage over env if storage exists
                 setConfig({
-                    volcApiKey: '', // Don't pre-fill from env for security in UI, or maybe optional? 
-                    // Actually, for better UX let's leave blank or load if user wants.
-                    // For now, clean slate or storage.
-                    volcTextModel: 'doubao-seed-1-8',
-                    volcImageModel: 'doubao-seedream-4-5',
+                    volcApiKey: '',
+                    // Use these specific Endpoint IDs as smart defaults
+                    volcTextModel: 'doubao-seed-1-8-251228',
+                    volcImageModel: 'doubao-seedream-4-5-251128',
                     kbUrl: '',
                     githubToken: ''
                 });
@@ -93,23 +92,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600">Text Model ID</label>
+                                <label className="text-xs font-medium text-gray-600">Text Model Endpoint ID (必填)</label>
                                 <input
                                     type="text"
                                     value={config.volcTextModel}
                                     onChange={(e) => handleChange('volcTextModel', e.target.value)}
-                                    placeholder="ep-2025..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    placeholder="doubao-seed-1-8-251228"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-300"
                                 />
+                                <p className="text-[10px] text-gray-400">请填写完整的 Endpoint ID</p>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-medium text-gray-600">Image Model ID</label>
+                                <label className="text-xs font-medium text-gray-600">Image Model Endpoint ID (必填)</label>
                                 <input
                                     type="text"
                                     value={config.volcImageModel}
                                     onChange={(e) => handleChange('volcImageModel', e.target.value)}
-                                    placeholder="ep-2025..."
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    placeholder="doubao-seedream-4-5-251128"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-300"
                                 />
                             </div>
                         </div>

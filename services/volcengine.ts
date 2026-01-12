@@ -27,8 +27,9 @@ const getVolcConfig = () => {
     const config = getConfig();
     return {
         BASE_URL: "https://ark.cn-beijing.volces.com/api/v3",
-        TEXT_MODEL: config.volcTextModel || process.env.VOLC_TEXT_MODEL || "doubao-seed-1-8",
-        IMAGE_MODEL: config.volcImageModel || process.env.VOLC_IMAGE_MODEL || "doubao-seedream-4-5"
+        // Updated to user-provided Endpoint IDs
+        TEXT_MODEL: config.volcTextModel || process.env.VOLC_TEXT_MODEL || "doubao-seed-1-8-251228",
+        IMAGE_MODEL: config.volcImageModel || process.env.VOLC_IMAGE_MODEL || "doubao-seedream-4-5-251128"
     };
 };
 
@@ -143,15 +144,30 @@ export const generateImageWithDoubao = async (prompt: string, aspectRatio: strin
     // We'll map common ratios to approximate pixel dimensions for "custom" or use closest preset.
     // The API docs conventionally use `size` (e.g. 1024x1024).
 
-    let width = 1024;
-    let height = 1024;
+    // Check if prompt contains aspect ratio (e.g. "16:9", "21:9") overrides the passed argument
+    const ratioMatch = prompt.match(/\b(\d+:\d+)\b/);
+    if (ratioMatch) {
+        const foundRatio = ratioMatch[1];
+        // Check if this ratio is in our supported list
+        if (["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"].includes(foundRatio)) {
+            aspectRatio = foundRatio;
+        }
+    }
 
+    let width = 2048;
+    let height = 2048;
+
+    // Doubao Seedream size mapping based on user provided table
     switch (aspectRatio) {
-        case "3:4": width = 768; height = 1024; break;
-        case "4:3": width = 1024; height = 768; break;
-        case "9:16": width = 576; height = 1024; break;
-        case "16:9": width = 1024; height = 576; break;
-        default: width = 1024; height = 1024; // 1:1
+        case "1:1": width = 2048; height = 2048; break;
+        case "4:3": width = 2304; height = 1728; break;
+        case "3:4": width = 1728; height = 2304; break;
+        case "16:9": width = 2560; height = 1440; break;
+        case "9:16": width = 1440; height = 2560; break;
+        case "3:2": width = 2496; height = 1664; break;
+        case "2:3": width = 1664; height = 2496; break;
+        case "21:9": width = 3024; height = 1296; break;
+        default: width = 2048; height = 2048; // Default to 1:1 High Res
     }
 
     try {
@@ -165,9 +181,9 @@ export const generateImageWithDoubao = async (prompt: string, aspectRatio: strin
             body: JSON.stringify({
                 model: config.IMAGE_MODEL,
                 prompt: prompt,
-                width: width,
-                height: height,
-                return_url: true // We want a URL usually, but let's check what App expects. App expects string URL/Base64.
+                size: `${width}x${height}`, // Correct API format: "width*height" string
+                return_url: true,
+                watermark: false // Disable watermark as requested
             })
         });
 

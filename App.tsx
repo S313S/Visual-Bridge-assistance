@@ -9,20 +9,39 @@ import { fetchExternalKnowledge } from './services/knowledgeBase';
 import { SYSTEM_INSTRUCTION } from './constants';
 
 const App: React.FC = () => {
-    // State
-    const [messages, setMessages] = useState<Message[]>([
-        {
+    // Keys
+    const SESSION_STORAGE_KEY = 'visual_bridge_session';
+
+    // State with Lazy Initialization from LocalStorage
+    const [messages, setMessages] = useState<Message[]>(() => {
+        const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                return parsed.messages || [];
+            } catch (e) { console.error("Failed to load session", e); }
+        }
+        return [{
             id: 'welcome',
             sender: Sender.AI,
             text: "您好！我是 VisualBridge AI。\n\n为了帮您生成最准确的视觉素材，我会先询问您关于**场景、主体、风格和色调**的细节。\n\n请告诉我您的初步想法，例如：\n> “我需要一张科技感的大会海报，主体是一个发光的芯片。”",
             timestamp: Date.now()
-        }
-    ]);
+        }];
+    });
+
+    const [images, setImages] = useState<GeneratedImage[]>(() => {
+        const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+        return saved ? JSON.parse(saved).images || [] : [];
+    });
+
+    const [iterationCount, setIterationCount] = useState(() => {
+        const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+        return saved ? JSON.parse(saved).iterationCount || 0 : 0;
+    });
+
     const [input, setInput] = useState('');
-    const [images, setImages] = useState<GeneratedImage[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
-    const [iterationCount, setIterationCount] = useState(0);
     const [currentPrompts, setCurrentPrompts] = useState<string[]>([]);
     const [currentAspectRatio, setCurrentAspectRatio] = useState<string>('1:1');
     const [showKeyModal, setShowKeyModal] = useState(false);
@@ -37,14 +56,24 @@ const App: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
 
-    // Check API Key
+    // Persistence Effect: Save Session on Change
+    useEffect(() => {
+        const sessionData = {
+            messages,
+            images,
+            iterationCount
+        };
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+    }, [messages, images, iterationCount]);
+
     // Check API Key
     useEffect(() => {
         // Check for Volcengine API Key in Storage OR Env
         const localConfig = localStorage.getItem(LOCAL_STORAGE_KEY);
         const hasLocalKey = localConfig && JSON.parse(localConfig).volcApiKey;
+        const envKey = process.env.VOLC_API_KEY || process.env.API_KEY;
 
-        if (!hasLocalKey && !process.env.VOLC_API_KEY && !process.env.API_KEY) {
+        if (!hasLocalKey && !envKey) {
             setShowKeyModal(true);
         }
 
@@ -183,7 +212,16 @@ const App: React.FC = () => {
 
     const handleReset = () => {
         if (window.confirm("确定要开始新会话吗？这将清除当前的历史记录。")) {
-            setMessages([messages[0]]);
+            // Clear storage
+            localStorage.removeItem(SESSION_STORAGE_KEY);
+
+            // Reset state
+            setMessages([{
+                id: 'welcome',
+                sender: Sender.AI,
+                text: "您好！我是 VisualBridge AI。\n\n为了帮您生成最准确的视觉素材，我会先询问您关于**场景、主体、风格和色调**的细节。\n\n请告诉我您的初步想法，例如：\n> “我需要一张科技感的大会海报，主体是一个发光的芯片。”",
+                timestamp: Date.now()
+            }]);
             setImages([]);
             setIterationCount(0);
             setCurrentPrompts([]);
