@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Send, RotateCcw, Image as ImageIcon, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bot, Send, RotateCcw, Image as ImageIcon, Sparkles, AlertTriangle, Settings } from 'lucide-react';
 import ChatMessage from './components/ChatMessage';
 import ImageGallery from './components/ImageGallery';
 import { AppState, Message, Sender, GeneratedImage } from './types';
+import SettingsModal, { LOCAL_STORAGE_KEY } from './components/SettingsModal';
 import { sendMessageToDoubao, generateImageWithDoubao } from './services/volcengine';
 import { fetchExternalKnowledge } from './services/knowledgeBase';
 import { SYSTEM_INSTRUCTION } from './constants';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
     const [currentPrompts, setCurrentPrompts] = useState<string[]>([]);
     const [currentAspectRatio, setCurrentAspectRatio] = useState<string>('1:1');
     const [showKeyModal, setShowKeyModal] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
     const [systemContext, setSystemContext] = useState<string>('');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -36,9 +38,13 @@ const App: React.FC = () => {
     }, [messages, isTyping]);
 
     // Check API Key
+    // Check API Key
     useEffect(() => {
-        // Check for Volcengine API Key or fallback
-        if (!process.env.VOLC_API_KEY && !process.env.API_KEY) {
+        // Check for Volcengine API Key in Storage OR Env
+        const localConfig = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const hasLocalKey = localConfig && JSON.parse(localConfig).volcApiKey;
+
+        if (!hasLocalKey && !process.env.VOLC_API_KEY && !process.env.API_KEY) {
             setShowKeyModal(true);
         }
 
@@ -198,6 +204,13 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-4">
                     <button
+                        onClick={() => setShowSettings(true)}
+                        className="text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-1 text-sm font-medium"
+                    >
+                        <Settings size={16} />
+                        配置 (Settings)
+                    </button>
+                    <button
                         onClick={handleReset}
                         className="text-gray-500 hover:text-red-600 transition-colors flex items-center gap-1 text-sm font-medium"
                     >
@@ -316,17 +329,29 @@ const App: React.FC = () => {
                         </div>
                         <p className="text-gray-600 mb-6">
                             此应用需要 Volcengine Doubao API Key 才能运行。
-                            由于这是演示环境，请确保在运行时配置中设置了环境变量 <code>VOLC_API_KEY</code>。
+                            <br />
+                            请点击下方按钮配置您的 API Key。
                         </p>
                         <button
-                            onClick={() => setShowKeyModal(false)}
+                            onClick={() => {
+                                setShowKeyModal(false);
+                                setShowSettings(true);
+                            }}
                             className="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700"
                         >
-                            我明白了
+                            去配置 (Configure)
                         </button>
                     </div>
                 </div>
             )}
+
+            <SettingsModal
+                isOpen={showSettings}
+                onClose={() => setShowSettings(false)}
+                onSave={() => {
+                    window.location.reload(); // Reload to apply new keys to services
+                }}
+            />
         </div>
     );
 };

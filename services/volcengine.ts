@@ -1,24 +1,35 @@
 import { SYSTEM_INSTRUCTION } from "../constants";
 
+// Helper to get config from localStorage or Env
+const getConfig = () => {
+    const local = localStorage.getItem('visual_bridge_config');
+    if (local) {
+        return JSON.parse(local);
+    }
+    return {};
+};
+
 // Helper to get API key safely
 const getApiKey = () => {
+    const config = getConfig();
+    if (config.volcApiKey) return config.volcApiKey;
+
     const key = process.env.VOLC_API_KEY || process.env.API_KEY;
     if (!key) {
-        console.error("VOLC_API_KEY is missing from environment variables");
+        // Don't log error here to avoid console spam, App.tsx handles missing key UI
         return "";
     }
     return key;
 };
 
 // Configuration for Volcengine
-// In a real scenario, these Endpoint IDs should be configurable via env vars
-// because each user deployment gets a unique endpoint ID.
-const CONFIG = {
-    BASE_URL: "https://ark.cn-beijing.volces.com/api/v3",
-    // These are default model names/IDs. Users might need to replace these 
-    // with their specific Endpoint IDs (e.g. ep-2024...) if using custom deployments.
-    TEXT_MODEL: process.env.VOLC_TEXT_MODEL || "doubao-seed-1-8",
-    IMAGE_MODEL: process.env.VOLC_IMAGE_MODEL || "doubao-seedream-4-5"
+const getVolcConfig = () => {
+    const config = getConfig();
+    return {
+        BASE_URL: "https://ark.cn-beijing.volces.com/api/v3",
+        TEXT_MODEL: config.volcTextModel || process.env.VOLC_TEXT_MODEL || "doubao-seed-1-8",
+        IMAGE_MODEL: config.volcImageModel || process.env.VOLC_IMAGE_MODEL || "doubao-seedream-4-5"
+    };
 };
 
 export interface ChatResponse {
@@ -49,14 +60,15 @@ export const sendMessageToDoubao = async (
     ];
 
     try {
-        const response = await fetch(`${CONFIG.BASE_URL}/chat/completions`, {
+        const config = getVolcConfig();
+        const response = await fetch(`${config.BASE_URL}/chat/completions`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: CONFIG.TEXT_MODEL,
+                model: config.TEXT_MODEL,
                 messages: messages,
                 temperature: 0.7,
                 stream: false
@@ -143,14 +155,15 @@ export const generateImageWithDoubao = async (prompt: string, aspectRatio: strin
     }
 
     try {
-        const response = await fetch(`${CONFIG.BASE_URL}/images/generations`, {
+        const config = getVolcConfig();
+        const response = await fetch(`${config.BASE_URL}/images/generations`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: CONFIG.IMAGE_MODEL,
+                model: config.IMAGE_MODEL,
                 prompt: prompt,
                 width: width,
                 height: height,
