@@ -79,9 +79,37 @@ JSON 结构：
   ],
   "aspectRatio": "16:9",
   "reasoning": "生成判据：已集齐要素，且对用户的补充需求[具体修改点]进行了确认...",
-  "scenario": "识别出的场景"
+  "scenario": "识别出的场景",
+  "thoughtProcess": [
+    {
+      "step": "需求解析",
+      "content": "用户需要...",
+      "knowledgeUsed": null
+    },
+    {
+      "step": "知识库应用",
+      "content": "根据角色提示词中的[具体规则]...",
+      "knowledgeUsed": "角色提示词"
+    },
+    {
+      "step": "豆包知识库应用",
+      "content": "根据豆包知识库中的[具体规则]...",
+      "knowledgeUsed": "豆包知识库"
+    },
+    {
+      "step": "最终决策",
+      "content": "综合以上分析，决定...",
+      "knowledgeUsed": null
+    }
+  ]
 }
 \`\`\`
+
+**关于 thoughtProcess（思考过程）**：
+- 这是一个数组，记录你做出决策的思考链路
+- 每一步包含：step（步骤名）、content（具体内容）、knowledgeUsed（使用的知识库名称，没有则为null）
+- 如果你参考了"角色提示词"或"豆包知识库"中的内容，必须在 knowledgeUsed 中注明
+- 即使不生成图片（情况1），也应该在回复中包含 thoughtProcess 的 JSON 块
 `;
 
 export const PLACEHOLDER_IMAGE = "https://picsum.photos/512/512";

@@ -4,12 +4,21 @@ export enum Sender {
   System = 'system'
 }
 
+export interface ThoughtStep {
+  id: string;
+  icon: string;
+  title: string;
+  content: string;
+  status: 'loading' | 'done' | 'error';
+}
+
 export interface Message {
   id: string;
   sender: Sender;
   text: string;
   timestamp: number;
   isThinking?: boolean;
+  thoughts?: ThoughtStep[];
 }
 
 export interface GeneratedImage {

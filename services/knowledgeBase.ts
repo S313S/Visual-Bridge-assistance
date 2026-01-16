@@ -25,44 +25,88 @@ const getConfig = (): Partial<AppConfig> => {
 
 
 
-// Helper: Normalize GitHub URLs (blob -> raw) to avoid HTML/CORS issues
-const normalizeUrl = (url: string) => {
-    if (!url) return "";
-    // If it's a standard GitHub blob URL, convert to raw
-    if (url.includes('github.com') && url.includes('/blob/')) {
-        return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
-    }
-    return url;
+// Helper: Parse GitHub URL to API Endpoint
+const getApiUrl = (url: string) => {
+    try {
+        const u = new URL(url);
+        // Match: github.com/:owner/:repo/blob/:ref/:path...
+        const match = u.pathname.match(/^\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/);
+        if (match) {
+            const [, owner, repo, ref, path] = match;
+            // Decode path to handle Chinese characters and other encoded symbols
+            const decodedPath = decodeURIComponent(path);
+            return `https://api.github.com/repos/${owner}/${repo}/contents/${decodedPath}?ref=${ref}`;
+        }
+        // Match raw: raw.githubusercontent.com/:owner/:repo/:ref/:path...
+        const matchRaw = u.pathname.match(/^\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/);
+        if (u.hostname === 'raw.githubusercontent.com' && matchRaw) {
+            const [, owner, repo, ref, path] = matchRaw;
+            const decodedPath = decodeURIComponent(path);
+            return `https://api.github.com/repos/${owner}/${repo}/contents/${decodedPath}?ref=${ref}`;
+        }
+    } catch (e) { console.error("Invalid URL", e); }
+    return null;
 };
 
 const fetchUrlContent = async (originalUrl: string, token?: string): Promise<string> => {
-    const url = normalizeUrl(originalUrl);
-    if (!url) return "";
+    if (!originalUrl) return "";
+
+    // Try to convert to API URL for batter CORS support
+    const apiUrl = getApiUrl(originalUrl);
+    const fetchUrl = apiUrl || originalUrl;
 
     try {
         const headers: HeadersInit = {
-            'Accept': 'application/vnd.github.v3.raw' // Request raw content
+            'Accept': 'application/vnd.github.v3+json'
         };
 
         if (token) {
             headers['Authorization'] = `token ${token}`;
         }
 
-        const response = await fetch(url, { headers });
+        console.log(`[DEBUG] Fetching: ${fetchUrl} (API Mode: ${!!apiUrl})`);
+
+        const response = await fetch(fetchUrl, { headers });
 
         if (!response.ok) {
-            console.error(`Failed to fetch KB from ${url}: ${response.status} ${response.statusText}`);
+            console.error(`[DEBUG] Failed to fetch KB from ${fetchUrl}: ${response.status} ${response.statusText}`);
             return "";
         }
 
-        return await response.text();
+        const data = await response.json();
+
+        // If using API, decode content
+        if (apiUrl && data.content && data.encoding === 'base64') {
+            // Decode base64 (handle utf-8 correctly)
+            const binaryString = window.atob(data.content.replace(/\n/g, ''));
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const decoder = new TextDecoder('utf-8');
+            const text = decoder.decode(bytes);
+
+            console.log(`[DEBUG] Successfully fetched & decoded KB via API (${text.length} chars)`);
+            return text;
+        }
+
+        // Fallback or unexpected format (should not happen if logic matches)
+        console.warn("[DEBUG] Response format trace:", data);
+        return "";
+
     } catch (error) {
-        console.error(`Error fetching KB from ${url}:`, error);
+        console.error(`[DEBUG] Error fetching KB from ${fetchUrl}:`, error);
         return "";
     }
 };
 
-export const fetchExternalKnowledge = async (): Promise<string> => {
+export interface KnowledgeBaseResult {
+    combined: string;
+    rolePrompt: { loaded: boolean; chars: number; name: string };
+    doubaoKb: { loaded: boolean; chars: number; name: string };
+}
+
+export const fetchExternalKnowledge = async (): Promise<KnowledgeBaseResult> => {
     const config = getConfig();
     const { kbUrl, doubaoKbUrl, githubToken } = config;
 
@@ -90,5 +134,24 @@ export const fetchExternalKnowledge = async (): Promise<string> => {
         console.log("No Knowledge Base content found.");
     }
 
-    return combined.trim();
+    // Extract filename from URL for display
+    const getFilename = (url: string) => {
+        if (!url) return "未配置";
+        const parts = url.split('/');
+        return parts[parts.length - 1] || url;
+    };
+
+    return {
+        combined: combined.trim(),
+        rolePrompt: {
+            loaded: !!roleContent,
+            chars: roleContent.length,
+            name: getFilename(kbUrl || "")
+        },
+        doubaoKb: {
+            loaded: !!doubaoContent,
+            chars: doubaoContent.length,
+            name: getFilename(doubaoKbUrl || "")
+        }
+    };
 };

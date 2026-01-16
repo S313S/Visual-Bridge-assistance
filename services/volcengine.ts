@@ -33,11 +33,18 @@ const getVolcConfig = () => {
     };
 };
 
+export interface ThoughtProcessStep {
+    step: string;
+    content: string;
+    knowledgeUsed: string | null;
+}
+
 export interface ChatResponse {
     text: string;
     visualPrompts?: string[];
     aspectRatio?: string;
     reasoning?: string;
+    thoughtProcess?: ThoughtProcessStep[];
 }
 
 export const sendMessageToDoubao = async (
@@ -49,6 +56,12 @@ export const sendMessageToDoubao = async (
 
     // Use override if provided, otherwise default
     const sysInstruction = systemInstructionOverride || SYSTEM_INSTRUCTION;
+
+    // DEBUG: Log the full system instruction to verify Knowledge Base injection
+    console.log("--------------------------------------------------");
+    console.log("🚀 [DEBUG] Sending System Instruction to Doubao:");
+    console.log(sysInstruction);
+    console.log("--------------------------------------------------");
 
     // Convert Gemini-style history to OpenAI/Doubao format
     const messages = [
@@ -119,7 +132,8 @@ export const sendMessageToDoubao = async (
                     text: cleanText || "已分析您的需求，正在生成参考方案...",
                     visualPrompts: prompts.length > 0 ? prompts : undefined,
                     aspectRatio: aspectRatio,
-                    reasoning: jsonContent.reasoning
+                    reasoning: jsonContent.reasoning,
+                    thoughtProcess: jsonContent.thoughtProcess
                 };
             } catch (e) {
                 console.error("Failed to parse JSON from Doubao", e);

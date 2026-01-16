@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Send, RotateCcw, Image as ImageIcon, Sparkles, AlertTriangle, Settings } from 'lucide-react';
 import ChatMessage from './components/ChatMessage';
 import ImageGallery from './components/ImageGallery';
-import { AppState, Message, Sender, GeneratedImage } from './types';
+import { AppState, Message, Sender, GeneratedImage, ThoughtStep } from './types';
 import SettingsModal, { LOCAL_STORAGE_KEY } from './components/SettingsModal';
 import { sendMessageToDoubao, generateImageWithDoubao } from './services/volcengine';
-import { fetchExternalKnowledge } from './services/knowledgeBase';
+import { fetchExternalKnowledge, KnowledgeBaseResult } from './services/knowledgeBase';
 import { SYSTEM_INSTRUCTION } from './constants';
 
 const App: React.FC = () => {
@@ -48,6 +48,7 @@ const App: React.FC = () => {
     const [showSettings, setShowSettings] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [systemContext, setSystemContext] = useState<string>('');
+    const [kbMetadata, setKbMetadata] = useState<Omit<KnowledgeBaseResult, 'combined'> | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     // Ref to track session validity (solves race conditions on reset)
@@ -82,10 +83,11 @@ const App: React.FC = () => {
 
         // Load Knowledge Base
         const loadKnowledge = async () => {
-            const kb = await fetchExternalKnowledge();
-            if (kb) {
+            const kbResult = await fetchExternalKnowledge();
+            if (kbResult.combined) {
                 console.log("Knowledge Base loaded successfully");
-                setSystemContext(kb);
+                setSystemContext(kbResult.combined);
+                setKbMetadata({ rolePrompt: kbResult.rolePrompt, doubaoKb: kbResult.doubaoKb });
             }
         };
         loadKnowledge();
@@ -119,6 +121,9 @@ const App: React.FC = () => {
             ? `${SYSTEM_INSTRUCTION}\n\n### Additional Knowledge Base:\n${systemContext}`
             : undefined;
 
+        console.log(`[DEBUG] systemContext length: ${systemContext ? systemContext.length : 0}`);
+        if (!systemContext) console.warn("[DEBUG] systemContext is empty! Knowledge Base will NOT be used.");
+
         const currentSessionId = sessionIdRef.current;
         const response = await sendMessageToDoubao(history, userMsg.text, fullSystemInstruction);
 
@@ -126,6 +131,42 @@ const App: React.FC = () => {
         if (sessionIdRef.current !== currentSessionId) return;
 
         setIsTyping(false);
+
+        // Build thoughts array from API response
+        const thoughts: ThoughtStep[] = [];
+
+        // Step 0: Knowledge Base loading status (from local tracking)
+        if (kbMetadata) {
+            const roleStatus = kbMetadata.rolePrompt.loaded ? '✓' : '✗';
+            const doubaoStatus = kbMetadata.doubaoKb.loaded ? '✓' : '✗';
+            thoughts.push({
+                id: 'kb-load',
+                icon: '📚',
+                title: '知识库加载',
+                content: `角色提示词 (${kbMetadata.rolePrompt.name}): ${roleStatus} ${kbMetadata.rolePrompt.chars > 0 ? `(${kbMetadata.rolePrompt.chars} 字符)` : ''}\n豆包知识库 (${kbMetadata.doubaoKb.name}): ${doubaoStatus} ${kbMetadata.doubaoKb.chars > 0 ? `(${kbMetadata.doubaoKb.chars} 字符)` : ''}`,
+                status: 'done'
+            });
+        }
+
+        // Add model's own thought process from API response
+        if (response.thoughtProcess && Array.isArray(response.thoughtProcess)) {
+            response.thoughtProcess.forEach((step, index) => {
+                // Choose icon based on knowledgeUsed
+                let icon = '💭';
+                if (step.knowledgeUsed === '角色提示词') icon = '📖';
+                else if (step.knowledgeUsed === '豆包知识库') icon = '🤖';
+                else if (step.step.includes('决策') || step.step.includes('生成')) icon = '✅';
+                else if (step.step.includes('解析') || step.step.includes('需求')) icon = '🎯';
+
+                thoughts.push({
+                    id: `thought-${index}`,
+                    icon: icon,
+                    title: step.step + (step.knowledgeUsed ? ` [${step.knowledgeUsed}]` : ''),
+                    content: step.content,
+                    status: 'done'
+                });
+            });
+        }
 
         let finalText = response.text;
 
@@ -139,7 +180,8 @@ const App: React.FC = () => {
             id: Date.now().toString(),
             sender: Sender.AI,
             text: finalText,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            thoughts: thoughts.length > 0 ? thoughts : undefined
         }]);
 
         // If Gemini returns visual prompts, trigger generation
