@@ -46,9 +46,12 @@ const App: React.FC = () => {
     const [currentAspectRatio, setCurrentAspectRatio] = useState<string>('1:1');
     const [showKeyModal, setShowKeyModal] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [systemContext, setSystemContext] = useState<string>('');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    // Ref to track session validity (solves race conditions on reset)
+    const sessionIdRef = useRef<number>(Date.now());
     const MAX_ITERATIONS = 7;
 
     // Auto-scroll chat
@@ -116,7 +119,11 @@ const App: React.FC = () => {
             ? `${SYSTEM_INSTRUCTION}\n\n### Additional Knowledge Base:\n${systemContext}`
             : undefined;
 
+        const currentSessionId = sessionIdRef.current;
         const response = await sendMessageToDoubao(history, userMsg.text, fullSystemInstruction);
+
+        // Race Condition Check: If session reset during await, ignore result
+        if (sessionIdRef.current !== currentSessionId) return;
 
         setIsTyping(false);
 
@@ -173,8 +180,12 @@ const App: React.FC = () => {
         }]);
 
         // Generate 4 images in parallel using distinct prompts and the recommended aspect ratio
+        const currentSessionId = sessionIdRef.current;
         const promises = finalPrompts.map(p => generateImageWithDoubao(p, aspectRatio));
         const results = await Promise.all(promises);
+
+        // Race Condition Check
+        if (sessionIdRef.current !== currentSessionId) return;
 
         const newImages: GeneratedImage[] = results.map((url, index) => ({
             id: `${Date.now()}-${index}`,
@@ -211,22 +222,28 @@ const App: React.FC = () => {
     };
 
     const handleReset = () => {
-        if (window.confirm("确定要开始新会话吗？这将清除当前的历史记录。")) {
-            // Clear storage
-            localStorage.removeItem(SESSION_STORAGE_KEY);
+        setShowResetConfirm(true);
+    };
 
-            // Reset state
-            setMessages([{
-                id: 'welcome',
-                sender: Sender.AI,
-                text: "您好！我是 VisualBridge AI。\n\n为了帮您生成最准确的视觉素材，我会先询问您关于**场景、主体、风格和色调**的细节。\n\n请告诉我您的初步想法，例如：\n> “我需要一张科技感的大会海报，主体是一个发光的芯片。”",
-                timestamp: Date.now()
-            }]);
-            setImages([]);
-            setIterationCount(0);
-            setCurrentPrompts([]);
-            setCurrentAspectRatio("1:1");
-        }
+    const confirmReset = () => {
+        // Update Session ID to invalidate any pending async tasks
+        sessionIdRef.current = Date.now();
+
+        // Clear storage
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+
+        // Reset state
+        setMessages([{
+            id: 'welcome',
+            sender: Sender.AI,
+            text: "您好！我是 VisualBridge AI。\n\n为了帮您生成最准确的视觉素材，我会先询问您关于**场景、主体、风格和色调**的细节。\n\n请告诉我您的初步想法，例如：\n> \"我需要一张科技感的大会海报，主体是一个发光的芯片。\"",
+            timestamp: Date.now()
+        }]);
+        setImages([]);
+        setIterationCount(0);
+        setCurrentPrompts([]);
+        setCurrentAspectRatio("1:1");
+        setShowResetConfirm(false);
     };
 
     return (
@@ -379,6 +396,32 @@ const App: React.FC = () => {
                         >
                             去配置 (Configure)
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Reset Confirmation Modal */}
+            {showResetConfirm && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">确认新会话</h3>
+                        <p className="text-gray-600 mb-6">
+                            确定要开始新会话吗？这将清除当前的历史记录。
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowResetConfirm(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={confirmReset}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors"
+                            >
+                                确认清除
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

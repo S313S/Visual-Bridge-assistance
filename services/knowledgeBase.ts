@@ -1,19 +1,43 @@
 /// <reference types="vite/client" />
 
-// Helper to get environment variables
-const getEnvVar = (key: string) => {
-    // Vite exposes env vars on import.meta.env
-    return import.meta.env[key] || process.env[key] || "";
+// Interface for Config (matching SettingsModal)
+interface AppConfig {
+    volcApiKey: string;
+    volcTextModel: string;
+    volcImageModel: string;
+    kbUrl: string;
+    doubaoKbUrl: string;
+    githubToken: string;
+}
+
+// Helper to get config from localStorage or Env
+const getConfig = (): Partial<AppConfig> => {
+    const local = localStorage.getItem('visual_bridge_config');
+    if (local) {
+        return JSON.parse(local);
+    }
+    // Fallback to env vars
+    return {
+        kbUrl: import.meta.env.VITE_KB_URL || process.env.VITE_KB_URL,
+        githubToken: import.meta.env.VITE_GITHUB_TOKEN || process.env.VITE_GITHUB_TOKEN
+    };
 };
 
-export const fetchExternalKnowledge = async (): Promise<string> => {
-    const url = getEnvVar('VITE_KB_URL');
-    const token = getEnvVar('VITE_GITHUB_TOKEN');
 
-    if (!url) {
-        console.log("No Knowledge Base URL configured.");
-        return "";
+
+// Helper: Normalize GitHub URLs (blob -> raw) to avoid HTML/CORS issues
+const normalizeUrl = (url: string) => {
+    if (!url) return "";
+    // If it's a standard GitHub blob URL, convert to raw
+    if (url.includes('github.com') && url.includes('/blob/')) {
+        return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
     }
+    return url;
+};
+
+const fetchUrlContent = async (originalUrl: string, token?: string): Promise<string> => {
+    const url = normalizeUrl(originalUrl);
+    if (!url) return "";
 
     try {
         const headers: HeadersInit = {
@@ -27,16 +51,44 @@ export const fetchExternalKnowledge = async (): Promise<string> => {
         const response = await fetch(url, { headers });
 
         if (!response.ok) {
-            console.error(`Failed to fetch Knowledge Base: ${response.status} ${response.statusText}`);
+            console.error(`Failed to fetch KB from ${url}: ${response.status} ${response.statusText}`);
             return "";
         }
 
-        const text = await response.text();
-        console.log("Successfully fetched Knowledge Base content.");
-        return text;
-
+        return await response.text();
     } catch (error) {
-        console.error("Error fetching Knowledge Base:", error);
+        console.error(`Error fetching KB from ${url}:`, error);
         return "";
     }
+};
+
+export const fetchExternalKnowledge = async (): Promise<string> => {
+    const config = getConfig();
+    const { kbUrl, doubaoKbUrl, githubToken } = config;
+
+    console.log("Fetching Knowledge Bases...");
+
+    // Fetch both in parallel
+    const [roleContent, doubaoContent] = await Promise.all([
+        fetchUrlContent(kbUrl || "", githubToken),
+        fetchUrlContent(doubaoKbUrl || "", githubToken)
+    ]);
+
+    let combined = "";
+
+    if (roleContent) {
+        combined += `### Role System Prompt / Persona Context:\n${roleContent}\n\n`;
+    }
+
+    if (doubaoContent) {
+        combined += `### Doubao Model Specific Guidelines & Knowledge:\n${doubaoContent}\n\n`;
+    }
+
+    if (combined) {
+        console.log("Knowledge Base loaded successfully.");
+    } else {
+        console.log("No Knowledge Base content found.");
+    }
+
+    return combined.trim();
 };

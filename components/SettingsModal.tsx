@@ -11,7 +11,9 @@ export interface AppConfig {
     volcApiKey: string;
     volcTextModel: string;
     volcImageModel: string;
+
     kbUrl: string;
+    doubaoKbUrl: string;
     githubToken: string;
 }
 
@@ -22,7 +24,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }
         volcApiKey: '',
         volcTextModel: '', // Must be user endpoint ID
         volcImageModel: '', // Must be user endpoint ID
+
         kbUrl: '',
+        doubaoKbUrl: '',
         githubToken: ''
     });
 
@@ -40,7 +44,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }
                     // Use these specific Endpoint IDs as smart defaults
                     volcTextModel: 'doubao-seed-1-8-251228',
                     volcImageModel: 'doubao-seedream-4-5-251128',
+
                     kbUrl: '',
+                    doubaoKbUrl: '',
                     githubToken: ''
                 });
             }
@@ -72,7 +78,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto space-y-6">
+                <div className="flex-1 p-6 overflow-y-auto space-y-6">
                     {/* Volcengine Section */}
                     <div className="space-y-4">
                         <h4 className="text-sm font-semibold text-gray-900 border-b pb-2 flex items-center gap-2">
@@ -134,6 +140,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }
                                 />
                             </div>
                         </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-gray-600">Doubao Knowledge Base URL</label>
+                            <div className="relative">
+                                <Database size={14} className="absolute left-3 top-3 text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={config.doubaoKbUrl}
+                                    onChange={(e) => handleChange('doubaoKbUrl', e.target.value)}
+                                    placeholder="https://.../DOUBAO_KNOWLEDGE_BASE.md"
+                                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+                        </div>
 
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-600">Personal Access Token (PAT)</label>
@@ -146,10 +165,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSave }
                             />
                         </div>
                     </div>
+                </div>
 
-                    <div className="text-xs text-gray-500 bg-amber-50 p-3 rounded-lg border border-amber-100">
-                        <span className="font-semibold text-amber-600">注意：</span> 配置将仅保存在您浏览器的 LocalStorage 中，不会上传到任何服务器。
-                    </div>
+                <div className="text-xs text-gray-500 bg-amber-50 p-3 rounded-lg border border-amber-100">
+                    <span className="font-semibold text-amber-600">注意：</span> 配置将仅保存在您浏览器的 LocalStorage 中，不会上传到任何服务器。
                 </div>
 
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
