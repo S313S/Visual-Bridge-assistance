@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Send, RotateCcw, Image as ImageIcon, Sparkles, AlertTriangle, Settings } from 'lucide-react';
+import { Bot, Send, RotateCcw, Image as ImageIcon, Sparkles, Settings } from 'lucide-react';
 import ChatMessage from './components/ChatMessage';
 import ImageGallery from './components/ImageGallery';
 import { AppState, Message, Sender, GeneratedImage, ThoughtStep } from './types';
 import SettingsModal, { LOCAL_STORAGE_KEY } from './components/SettingsModal';
-import { sendMessageToDoubao, generateImageWithDoubao, isWorkerMode } from './services/volcengine';
+import { sendMessageToDoubao, generateImageWithDoubao } from './services/volcengine';
 import { fetchExternalKnowledge, KnowledgeBaseResult } from './services/knowledgeBase';
 import { SYSTEM_INSTRUCTION } from './constants';
 
@@ -44,7 +44,7 @@ const App: React.FC = () => {
     const [isTyping, setIsTyping] = useState(false);
     const [currentPrompts, setCurrentPrompts] = useState<string[]>([]);
     const [currentAspectRatio, setCurrentAspectRatio] = useState<string>('1:1');
-    const [showKeyModal, setShowKeyModal] = useState(false);
+
     const [showSettings, setShowSettings] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [systemContext, setSystemContext] = useState<string>('');
@@ -70,20 +70,8 @@ const App: React.FC = () => {
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
     }, [messages, images, iterationCount]);
 
-    // Check API Key
+    // Load Knowledge Base on mount
     useEffect(() => {
-        // Check for Volcengine API Key in Storage OR Env
-        const localConfig = localStorage.getItem(LOCAL_STORAGE_KEY);
-        const hasLocalKey = localConfig && JSON.parse(localConfig).volcApiKey;
-        const envKey = process.env.VOLC_API_KEY || process.env.API_KEY;
-
-        if (!hasLocalKey && !envKey && !isWorkerMode()) {
-            setShowKeyModal(true);
-        } else {
-            setShowKeyModal(false);
-        }
-
-        // Load Knowledge Base
         const loadKnowledge = async () => {
             const kbResult = await fetchExternalKnowledge();
             if (kbResult.combined) {
@@ -418,31 +406,7 @@ const App: React.FC = () => {
 
             </main>
 
-            {/* No Key Modal */}
-            {showKeyModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 text-amber-500 mb-4">
-                            <AlertTriangle size={24} />
-                            <h3 className="text-lg font-bold text-gray-900">缺失 API 密钥</h3>
-                        </div>
-                        <p className="text-gray-600 mb-6">
-                            此应用需要 Volcengine Doubao API Key 才能运行。
-                            <br />
-                            请点击下方按钮配置您的 API Key。
-                        </p>
-                        <button
-                            onClick={() => {
-                                setShowKeyModal(false);
-                                setShowSettings(true);
-                            }}
-                            className="w-full py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700"
-                        >
-                            去配置 (Configure)
-                        </button>
-                    </div>
-                </div>
-            )}
+
 
             {/* Reset Confirmation Modal */}
             {showResetConfirm && (
