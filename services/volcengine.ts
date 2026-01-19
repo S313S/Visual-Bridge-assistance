@@ -1,5 +1,18 @@
 import { SYSTEM_INSTRUCTION } from "../constants";
 
+// Get Worker URL (if deployed to Cloudflare) or null for direct API mode
+const getWorkerUrl = (): string | null => {
+    // Check for build-time env var first
+    const envWorkerUrl = import.meta.env.VITE_WORKER_URL;
+    if (envWorkerUrl) return envWorkerUrl;
+
+    // Check localStorage for runtime override
+    const config = getConfig();
+    if (config.workerUrl) return config.workerUrl;
+
+    return null;
+};
+
 // Helper to get config from localStorage or Env
 const getConfig = () => {
     const local = localStorage.getItem('visual_bridge_config');
@@ -9,29 +22,27 @@ const getConfig = () => {
     return {};
 };
 
-// Helper to get API key safely
+// Helper to get API key safely (only needed for direct mode)
 const getApiKey = () => {
     const config = getConfig();
     if (config.volcApiKey) return config.volcApiKey;
 
-    const key = process.env.VOLC_API_KEY || process.env.API_KEY;
-    if (!key) {
-        // Don't log error here to avoid console spam, App.tsx handles missing key UI
-        return "";
-    }
+    const key = import.meta.env.VITE_VOLC_API_KEY || "";
     return key;
 };
 
-// Configuration for Volcengine
+// Configuration for Volcengine (direct mode only)
 const getVolcConfig = () => {
     const config = getConfig();
     return {
         BASE_URL: "https://ark.cn-beijing.volces.com/api/v3",
-        // Updated to user-provided Endpoint IDs
-        TEXT_MODEL: config.volcTextModel || process.env.VOLC_TEXT_MODEL || "doubao-seed-1-8-251228",
-        IMAGE_MODEL: config.volcImageModel || process.env.VOLC_IMAGE_MODEL || "doubao-seedream-4-5-251128"
+        TEXT_MODEL: config.volcTextModel || import.meta.env.VITE_VOLC_TEXT_MODEL || "doubao-seed-1-8-251228",
+        IMAGE_MODEL: config.volcImageModel || import.meta.env.VITE_VOLC_IMAGE_MODEL || "doubao-seedream-4-5-251128"
     };
 };
+
+// Check if we're in Worker mode
+export const isWorkerMode = (): boolean => !!getWorkerUrl();
 
 export interface ThoughtProcessStep {
     step: string;
@@ -52,16 +63,8 @@ export const sendMessageToDoubao = async (
     lastMessage: string,
     systemInstructionOverride?: string
 ): Promise<ChatResponse> => {
-    const apiKey = getApiKey();
-
     // Use override if provided, otherwise default
     const sysInstruction = systemInstructionOverride || SYSTEM_INSTRUCTION;
-
-    // DEBUG: Log the full system instruction to verify Knowledge Base injection
-    console.log("--------------------------------------------------");
-    console.log("🚀 [DEBUG] Sending System Instruction to Doubao:");
-    console.log(sysInstruction);
-    console.log("--------------------------------------------------");
 
     // Convert Gemini-style history to OpenAI/Doubao format
     const messages = [
@@ -73,21 +76,42 @@ export const sendMessageToDoubao = async (
         { role: "user", content: lastMessage }
     ];
 
+    const workerUrl = getWorkerUrl();
+
     try {
-        const config = getVolcConfig();
-        const response = await fetch(`${config.BASE_URL}/chat/completions`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: config.TEXT_MODEL,
-                messages: messages,
-                temperature: 0.7,
-                stream: false
-            })
-        });
+        let response: Response;
+
+        if (workerUrl) {
+            // Worker mode: call our Cloudflare Worker proxy
+            console.log("[API] Using Worker mode:", workerUrl);
+            response = await fetch(`${workerUrl}/api/chat`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    messages: messages,
+                    temperature: 0.7,
+                    stream: false
+                })
+            });
+        } else {
+            // Direct mode: call Volcengine API directly (requires API key)
+            const apiKey = getApiKey();
+            const config = getVolcConfig();
+            console.log("[API] Using Direct mode");
+            response = await fetch(`${config.BASE_URL}/chat/completions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: config.TEXT_MODEL,
+                    messages: messages,
+                    temperature: 0.7,
+                    stream: false
+                })
+            });
+        }
 
         if (!response.ok) {
             const errText = await response.text();
@@ -150,19 +174,10 @@ export const sendMessageToDoubao = async (
 };
 
 export const generateImageWithDoubao = async (prompt: string, aspectRatio: string = "1:1"): Promise<string> => {
-    const apiKey = getApiKey();
-
-    // Map aspect ratio to closest supported size if needed, 
-    // or Doubao might ignore it if not strictly "width" x "height".
-    // Doubao Seedream usually takes width/height args or size preset.
-    // We'll map common ratios to approximate pixel dimensions for "custom" or use closest preset.
-    // The API docs conventionally use `size` (e.g. 1024x1024).
-
     // Check if prompt contains aspect ratio (e.g. "16:9", "21:9") overrides the passed argument
     const ratioMatch = prompt.match(/\b(\d+:\d+)\b/);
     if (ratioMatch) {
         const foundRatio = ratioMatch[1];
-        // Check if this ratio is in our supported list
         if (["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"].includes(foundRatio)) {
             aspectRatio = foundRatio;
         }
@@ -181,25 +196,45 @@ export const generateImageWithDoubao = async (prompt: string, aspectRatio: strin
         case "3:2": width = 2496; height = 1664; break;
         case "2:3": width = 1664; height = 2496; break;
         case "21:9": width = 3024; height = 1296; break;
-        default: width = 2048; height = 2048; // Default to 1:1 High Res
+        default: width = 2048; height = 2048;
     }
 
+    const workerUrl = getWorkerUrl();
+
     try {
-        const config = getVolcConfig();
-        const response = await fetch(`${config.BASE_URL}/images/generations`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: config.IMAGE_MODEL,
-                prompt: prompt,
-                size: `${width}x${height}`, // Correct API format: "width*height" string
-                return_url: true,
-                watermark: false // Disable watermark as requested
-            })
-        });
+        let response: Response;
+
+        if (workerUrl) {
+            // Worker mode
+            console.log("[API] Image generation via Worker");
+            response = await fetch(`${workerUrl}/api/image`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    size: `${width}x${height}`
+                })
+            });
+        } else {
+            // Direct mode
+            const apiKey = getApiKey();
+            const config = getVolcConfig();
+            console.log("[API] Image generation via Direct API");
+            response = await fetch(`${config.BASE_URL}/images/generations`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: config.IMAGE_MODEL,
+                    prompt: prompt,
+                    size: `${width}x${height}`,
+                    return_url: true,
+                    watermark: false
+                })
+            });
+        }
 
         if (!response.ok) {
             const errText = await response.text();

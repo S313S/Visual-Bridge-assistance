@@ -8,6 +8,7 @@ interface AppConfig {
     kbUrl: string;
     doubaoKbUrl: string;
     githubToken: string;
+    workerUrl: string;
 }
 
 // Helper to get config from localStorage or Env
@@ -18,9 +19,20 @@ const getConfig = (): Partial<AppConfig> => {
     }
     // Fallback to env vars
     return {
-        kbUrl: import.meta.env.VITE_KB_URL || process.env.VITE_KB_URL,
-        githubToken: import.meta.env.VITE_GITHUB_TOKEN || process.env.VITE_GITHUB_TOKEN
+        kbUrl: import.meta.env.VITE_KB_URL,
+        githubToken: import.meta.env.VITE_GITHUB_TOKEN
     };
+};
+
+// Get Worker URL (if deployed to Cloudflare)
+const getWorkerUrl = (): string | null => {
+    const envWorkerUrl = import.meta.env.VITE_WORKER_URL;
+    if (envWorkerUrl) return envWorkerUrl;
+
+    const config = getConfig();
+    if (config.workerUrl) return config.workerUrl;
+
+    return null;
 };
 
 
@@ -107,12 +119,44 @@ export interface KnowledgeBaseResult {
 }
 
 export const fetchExternalKnowledge = async (): Promise<KnowledgeBaseResult> => {
+    const workerUrl = getWorkerUrl();
+
+    // Worker mode: POST to Worker /api/kb with URLs from user config
+    if (workerUrl) {
+        const config = getConfig();
+        console.log("[KB] Using Worker mode:", workerUrl);
+        try {
+            const response = await fetch(`${workerUrl}/api/kb`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    kbUrl: config.kbUrl || "",
+                    doubaoKbUrl: config.doubaoKbUrl || ""
+                })
+            });
+            if (!response.ok) {
+                console.error(`[KB] Worker API error: ${response.status}`);
+                return { combined: "", rolePrompt: { loaded: false, chars: 0, name: "Worker" }, doubaoKb: { loaded: false, chars: 0, name: "Worker" } };
+            }
+            const data = await response.json();
+            console.log("[KB] Worker KB loaded successfully.");
+            return {
+                combined: data.combined || "",
+                rolePrompt: { loaded: data.rolePrompt?.loaded || false, chars: data.rolePrompt?.chars || 0, name: "角色提示词" },
+                doubaoKb: { loaded: data.doubaoKb?.loaded || false, chars: data.doubaoKb?.chars || 0, name: "豆包知识库" }
+            };
+        } catch (error) {
+            console.error("[KB] Worker fetch error:", error);
+            return { combined: "", rolePrompt: { loaded: false, chars: 0, name: "Worker" }, doubaoKb: { loaded: false, chars: 0, name: "Worker" } };
+        }
+    }
+
+    // Direct mode: fetch from GitHub API
     const config = getConfig();
     const { kbUrl, doubaoKbUrl, githubToken } = config;
 
-    console.log("Fetching Knowledge Bases...");
+    console.log("[KB] Using Direct mode...");
 
-    // Fetch both in parallel
     const [roleContent, doubaoContent] = await Promise.all([
         fetchUrlContent(kbUrl || "", githubToken),
         fetchUrlContent(doubaoKbUrl || "", githubToken)
@@ -129,12 +173,11 @@ export const fetchExternalKnowledge = async (): Promise<KnowledgeBaseResult> => 
     }
 
     if (combined) {
-        console.log("Knowledge Base loaded successfully.");
+        console.log("[KB] Direct KB loaded successfully.");
     } else {
-        console.log("No Knowledge Base content found.");
+        console.log("[KB] No Knowledge Base content found.");
     }
 
-    // Extract filename from URL for display
     const getFilename = (url: string) => {
         if (!url) return "未配置";
         const parts = url.split('/');

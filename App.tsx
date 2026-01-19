@@ -4,7 +4,7 @@ import ChatMessage from './components/ChatMessage';
 import ImageGallery from './components/ImageGallery';
 import { AppState, Message, Sender, GeneratedImage, ThoughtStep } from './types';
 import SettingsModal, { LOCAL_STORAGE_KEY } from './components/SettingsModal';
-import { sendMessageToDoubao, generateImageWithDoubao } from './services/volcengine';
+import { sendMessageToDoubao, generateImageWithDoubao, isWorkerMode } from './services/volcengine';
 import { fetchExternalKnowledge, KnowledgeBaseResult } from './services/knowledgeBase';
 import { SYSTEM_INSTRUCTION } from './constants';
 
@@ -77,8 +77,10 @@ const App: React.FC = () => {
         const hasLocalKey = localConfig && JSON.parse(localConfig).volcApiKey;
         const envKey = process.env.VOLC_API_KEY || process.env.API_KEY;
 
-        if (!hasLocalKey && !envKey) {
+        if (!hasLocalKey && !envKey && !isWorkerMode()) {
             setShowKeyModal(true);
+        } else {
+            setShowKeyModal(false);
         }
 
         // Load Knowledge Base

@@ -1,0 +1,16 @@
+name = "visual-bridge-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# 环境变量在 Cloudflare Dashboard 中配置，不要在这里写明文！
+# 需要配置的变量 (敏感信息请在 Dashboard 配置):
+# - VOLC_API_KEY (Dashboard)
+# - GITHUB_TOKEN (Dashboard)
+# - KB_URL (可选, Dashboard 或前端)
+# - DOUBAO_KB_URL (可选, Dashboard 或前端)
+
+# 非敏感变量可以写在这里
+[vars]
+ALLOWED_ORIGIN = "https://s313s.github.io"
+VOLC_TEXT_MODEL = "doubao-seed-1-8-251228"
+VOLC_IMAGE_MODEL = "doubao-seedream-4-5-251128"
