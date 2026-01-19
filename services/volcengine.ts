@@ -1,5 +1,8 @@
 import { SYSTEM_INSTRUCTION } from "../constants";
 
+// Production Worker URL (safe to expose - this is public endpoint)
+const PRODUCTION_WORKER_URL = "https://visual-bridge-proxy.visual-bridge.workers.dev";
+
 // Get Worker URL (if deployed to Cloudflare) or null for direct API mode
 const getWorkerUrl = (): string | null => {
     // Check for build-time env var first
@@ -10,7 +13,8 @@ const getWorkerUrl = (): string | null => {
     const config = getConfig();
     if (config.workerUrl) return config.workerUrl;
 
-    return null;
+    // Always use production Worker URL as fallback
+    return PRODUCTION_WORKER_URL;
 };
 
 // Helper to get config from localStorage or Env
