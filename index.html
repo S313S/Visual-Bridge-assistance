@@ -1,22 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VisualBridge AI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body { font-family: 'Inter', sans-serif; }
-      /* Custom scrollbar for chat */
-      .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-      }
-      .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-      }
-    </style>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <!-- Primary Meta Tags -->
+  <title>VisualBridge AI - 智能视觉提示词生成助手</title>
+  <meta name="title" content="VisualBridge AI - 智能视觉提示词生成助手" />
+  <meta name="description" content="VisualBridge AI 是一个智能视觉提示词生成工具，帮助设计师和创作者将模糊的想法转化为精准的AI绘画提示词，支持Doubao等主流模型。" />
+  <meta name="keywords"
+    content="AI绘图, 提示词生成, VisualBridge, 视觉桥梁, Doubao, Stable Diffusion, Midjourney, AI Art Prompt" />
+  <meta name="author" content="VisualBridge AI Team" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://visualbridge.ai/" />
+  <meta property="og:title" content="VisualBridge AI - 智能视觉提示词生成助手" />
+  <meta property="og:description" content="将您的创意想法转化为专业的AI绘画提示词。智能分析场景、主体、风格，一键生成高质量视觉描述。" />
+  <meta property="og:image" content="/og-image.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://visualbridge.ai/" />
+  <meta property="twitter:title" content="VisualBridge AI - 智能视觉提示词生成助手" />
+  <meta property="twitter:description" content="将您的创意想法转化为专业的AI绘画提示词。智能分析场景、主体、风格，一键生成高质量视觉描述。" />
+  <meta property="twitter:image" content="/og-image.png" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Custom scrollbar for chat */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -30,8 +58,10 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50 text-gray-900 h-screen overflow-hidden">
-    <div id="root" class="h-full"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<body class="bg-gray-50 text-gray-900 h-screen overflow-hidden">
+  <div id="root" class="h-full"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
 </html>
