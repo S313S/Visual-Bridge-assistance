@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GeneratedImage } from '../types';
 import { CheckCircle2, Download, RefreshCw, ZoomIn, AlertCircle, X, FileText, Copy, Check } from 'lucide-react';
+import { usePostHog } from 'posthog-js/react';
 
 interface ImageGalleryProps {
     images: GeneratedImage[];
@@ -22,6 +23,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     const [previewImage, setPreviewImage] = useState<GeneratedImage | null>(null);
     const [promptImage, setPromptImage] = useState<GeneratedImage | null>(null);
     const [copied, setCopied] = useState(false);
+    const posthog = usePostHog();
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -120,6 +122,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                                                         image_id: img.id
                                                     });
                                                 }
+                                                // PostHog Event: View Prompt from thumbnail
+                                                posthog?.capture('view_prompt', {
+                                                    source: 'thumbnail_hover',
+                                                    image_id: img.id
+                                                });
                                             }}
                                             className="p-2 bg-white/90 hover:bg-white text-gray-700 rounded-lg shadow-sm transition-colors"
                                             title="查看提示词"
@@ -140,6 +147,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                                                         image_id: img.id
                                                     });
                                                 }
+                                                // PostHog Event: Download from thumbnail
+                                                posthog?.capture('download_image', {
+                                                    source: 'thumbnail_hover',
+                                                    image_id: img.id
+                                                });
                                             }}
                                             className="p-2 bg-white/90 hover:bg-white text-gray-700 rounded-lg shadow-sm transition-colors"
                                             title="下载"
@@ -240,6 +252,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                                             image_id: previewImage?.id
                                         });
                                     }
+                                    // PostHog Event: View Prompt from preview modal
+                                    posthog?.capture('view_prompt', {
+                                        source: 'preview_modal',
+                                        image_id: previewImage?.id
+                                    });
                                 }}
                                 className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
                             >
@@ -257,6 +274,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                                             image_id: previewImage?.id
                                         });
                                     }
+                                    // PostHog Event: Download from preview modal
+                                    posthog?.capture('download_image', {
+                                        source: 'preview_modal',
+                                        image_id: previewImage?.id
+                                    });
                                 }}
                                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
                             >
